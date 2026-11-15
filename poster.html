@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>설문 포스터</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  @page{size:A4;margin:0}
+  *{box-sizing:border-box}
+  body{margin:0;background:#d9dde1;font-family:"Noto Sans KR",sans-serif;color:#1d1d1f}
+  .ctrl{max-width:210mm;margin:16px auto;display:flex;gap:8px;flex-wrap:wrap;padding:0 12px}
+  .ctrl input{flex:1;min-width:220px;padding:10px 12px;border:1px solid #b9c0c6;border-radius:8px;font:inherit}
+  .ctrl button{padding:10px 16px;border:0;border-radius:8px;background:#1d1d1f;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+  .ctrl p{width:100%;margin:0;color:#555;font-size:13px}
+  .poster{width:210mm;height:297mm;margin:0 auto 24px;background:#22b8b1;position:relative;overflow:hidden;display:flex;flex-direction:column;padding:20mm 16mm 14mm;color:#fff}
+  .poster::before{content:"";position:absolute;width:150mm;height:150mm;border-radius:50%;background:rgba(255,255,255,.08);right:-50mm;top:-40mm}
+  .poster::after{content:"";position:absolute;width:110mm;height:110mm;border-radius:50%;background:rgba(0,0,0,.05);left:-40mm;bottom:40mm}
+  .tagline{position:relative;display:inline-block;align-self:flex-start;background:#fff;color:#139a94;font-weight:900;font-size:17pt;padding:2.5mm 6mm;border-radius:99px}
+  h1{position:relative;font-size:46pt;line-height:1.15;font-weight:900;margin:9mm 0 5mm;letter-spacing:-1.5pt}
+  .sub{position:relative;font-size:17pt;line-height:1.55;margin:0;font-weight:500;opacity:.95}
+  .cards{position:relative;display:flex;gap:4mm;margin:9mm 0 0}
+  .mini{flex:1;background:rgba(255,255,255,.16);border-radius:5mm;padding:4mm;font-size:12pt;line-height:1.4}
+  .mini .e{font-size:22pt}
+  .qrbox{position:relative;margin:auto auto 0;background:#fff;border-radius:8mm;padding:9mm 9mm 6mm;display:flex;flex-direction:column;align-items:center;box-shadow:0 4mm 10mm rgba(0,0,0,.12)}
+  #qr{width:72mm;height:72mm}
+  #qr img,#qr canvas{width:72mm!important;height:72mm!important}
+  .scan{color:#1d1d1f;font-weight:900;font-size:18pt;margin-top:5mm}
+  .scan small{display:block;text-align:center;font-weight:500;font-size:11pt;color:#6f7378;margin-top:1mm}
+  .foot{position:relative;margin-top:8mm;text-align:center;font-size:11pt;opacity:.9}
+  @media print{ body{background:#fff} .ctrl{display:none} .poster{margin:0} }
+</style>
+</head>
+<body>
+  <div class="ctrl">
+    <input id="url" placeholder="설문 사이트 주소 (예: https://내아이디.github.io/delivery-survey/)">
+    <button id="apply">QR 만들기</button>
+    <button id="print">인쇄 / PDF 저장</button>
+    <p>주소를 넣고 「QR 만들기」를 누른 뒤 인쇄하세요. 인쇄 창에서 용지 A4, 여백 없음, 배경 그래픽 켜기.</p>
+  </div>
+
+  <div class="poster">
+    <span class="tagline">🛵 1분 설문 · 익명</span>
+    <h1>오늘 배달,<br>어느 가게에서<br>시킬래요?</h1>
+    <p class="sub">배달앱 화면 3개에서 가장 끌리는 가게를<br>하나씩만 골라주세요. 정답은 없어요!</p>
+    <div class="cards">
+      <div class="mini"><div class="e">📱</div>QR 찍고<br>바로 시작</div>
+      <div class="mini"><div class="e">👆</div>화면마다<br>가게 1곳 탭</div>
+      <div class="mini"><div class="e">⏱️</div>3번이면<br>끝 (약 1분)</div>
+    </div>
+    <div class="qrbox">
+      <div id="qr"></div>
+      <div class="scan">카메라로 QR을 찍어주세요<small id="urlText"></small></div>
+    </div>
+    <div class="foot">응답은 익명으로 수집되며 연구 목적으로만 사용됩니다.</div>
+  </div>
+
+<script>
+  const input = document.getElementById("url");
+  const guess = new URLSearchParams(location.search).get("url") ||
+    (location.protocol.startsWith("http") ? location.href.replace(/poster\.html.*$/, "") : "");
+  input.value = guess;
+  let qr;
+  function make(){
+    const u = input.value.trim(); if (!u) return;
+    document.getElementById("qr").innerHTML = "";
+    qr = new QRCode(document.getElementById("qr"), { text: u, width: 600, height: 600, colorDark: "#1d1d1f", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+    document.getElementById("urlText").textContent = u.replace(/^https?:\/\//, "");
+  }
+  document.getElementById("apply").onclick = make;
+  document.getElementById("print").onclick = () => window.print();
+  make();
+</script>
+</body>
+</html>

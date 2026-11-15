@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>배달 설문 결과 분석</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:light;
+    --surface:#fcfcfb; --page:#f3f3f1; --card:#ffffff; --line:#e6e5e1; --grid:#ecebe7;
+    --text:#0b0b0b; --text2:#52514e; --muted:#8a8984;
+    --s1:#2a78d6; --s2:#eb6834; --accent:#22b8b1;
+    --q1:#cde2fb; --q2:#9ec5f4; --q3:#6da7ec; --q4:#3987e5; --q5:#256abf; --q6:#184f95; --q7:#0d366b;
+    --pos:#1baf7a; --neg:#e34948; --onhi:#ffffff; --onhi2:rgba(255,255,255,.85);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])){
+      color-scheme:dark;
+      --surface:#1a1a19; --page:#111110; --card:#1f1f1e; --line:#33332f; --grid:#2a2a27;
+      --text:#f0efec; --text2:#c3c2b7; --muted:#8f8e86;
+      --s1:#3987e5; --s2:#d95926;
+      --q1:#17304f; --q2:#1c4a7c; --q3:#2463a8; --q4:#3987e5; --q5:#6da7ec; --q6:#9ec5f4; --q7:#cde2fb;
+      --pos:#199e70; --neg:#e66767; --onhi:#0b0b0b; --onhi2:rgba(0,0,0,.7);
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--text);font-family:"Noto Sans KR",system-ui,sans-serif;font-size:14px;line-height:1.5}
+  .wrap{max-width:1100px;margin:0 auto;padding:24px 16px 60px}
+  h1{font-size:24px;margin:0 0 4px;font-weight:800}
+  .lead{color:var(--text2);margin:0 0 18px}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:16px}
+  .bar button,.bar label.btn{border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:8px;padding:7px 12px;font:inherit;cursor:pointer}
+  .bar button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+  .bar .src{margin-left:auto;color:var(--muted);font-size:13px}
+  .bar input[type=file]{display:none}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .kpi .l{color:var(--text2);font-size:13px}
+  .kpi .v{font-size:28px;font-weight:800;letter-spacing:-.5px}
+  .kpi .h{color:var(--muted);font-size:12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr));gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;min-width:0}
+  .card h2{font-size:16px;margin:0 0 2px}
+  .card .d{color:var(--text2);font-size:13px;margin:0 0 10px}
+  .card.wide{grid-column:1/-1}
+  svg text{fill:var(--text2);font-family:inherit}
+  .finding{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:8px;padding:12px 14px;margin-top:10px;color:var(--text)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th:nth-child(-n+3),td:nth-child(-n+3){text-align:left}
+  th{color:var(--text2);font-weight:500}
+  .tablewrap{overflow-x:auto}
+  .coef td:first-child,.coef th:first-child,.coef th:last-child{text-align:left}
+  .tip{position:fixed;pointer-events:none;background:var(--card);color:var(--text);border:1px solid var(--line);box-shadow:0 4px 16px rgba(0,0,0,.12);border-radius:8px;padding:8px 10px;font-size:12px;opacity:0;transition:opacity .1s;z-index:10;max-width:240px}
+  .demo-flag{display:none;background:#fff4d6;color:#7a5500;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-weight:700}
+  .empty{color:var(--muted);padding:40px 0;text-align:center}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-top:6px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>배달 평점·리뷰 수 선호도 분석</h1>
+  <p class="lead">5개 그룹 × 5개 매장 · 평점 5단계 × 리뷰 수 5단계 라틴 방격 설계. 각 응답은 "한 화면의 매장 5곳 중 1곳 선택"입니다.</p>
+
+  <div class="bar">
+    <button class="primary" id="btnSheet">구글 시트에서 불러오기</button>
+    <label class="btn">CSV 파일 열기<input type="file" id="fileCsv" accept=".csv,text/csv"></label>
+    <button id="btnLocal">이 기기 응답 보기</button>
+    <button id="btnDemo">예시 데이터로 미리보기</button>
+    <label style="display:flex;gap:6px;align-items:center;color:var(--text2)"><input type="checkbox" id="exTest" checked> 테스트 응답 제외</label>
+    <span class="src" id="src">데이터를 불러오세요</span>
+  </div>
+  <div class="demo-flag" id="demoFlag">⚠️ 지금 보이는 것은 가상의 예시 데이터입니다 (실제 응답 아님)</div>
+
+  <div id="out"><div class="empty">위 버튼으로 데이터를 불러오면 그래프가 나타납니다.</div></div>
+</div>
+<div class="tip" id="tip"></div>
+
+<script src="config.js"></script>
+<script>
+const CFG = window.SURVEY_CONFIG, D = window.SURVEY_DESIGN;
+const $ = (id) => document.getElementById(id);
+const pct = (x, d = 0) => (x * 100).toFixed(d) + "%";
+const fmt = (n) => Number(n).toLocaleString("ko-KR");
+let RAW = [];
+
+/* ---------------- 데이터 불러오기 ---------------- */
+$("btnSheet").onclick = async () => {
+  if (!CFG.SHEET_URL) { alert("config.js 의 SHEET_URL 이 비어 있어요. 설정가이드를 참고해 주소를 넣어주세요."); return; }
+  $("src").textContent = "불러오는 중…";
+  try {
+    const r = await fetch(CFG.SHEET_URL + "?t=" + Date.now());
+    const j = await r.json();
+    load(j.rows || [], "구글 시트 · " + new Date().toLocaleString("ko-KR"));
+  } catch (e) { $("src").textContent = "불러오기 실패: " + e.message; }
+};
+$("btnLocal").onclick = () => {
+  let rows = []; try { rows = JSON.parse(localStorage.getItem("bsurvey_local_responses") || "[]"); } catch (e) {}
+  load(rows, "이 기기 저장분");
+};
+$("btnDemo").onclick = () => load(simulate(240), "예시 데이터 (가상 응답 240명)", true);
+$("fileCsv").onchange = (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  f.text().then(t => load(parseCSV(t), "CSV · " + f.name));
+};
+$("exTest").onchange = () => RAW.length && render();
+
+function load(rows, label, demo = false){
+  RAW = rows.map(r => ({ ...r, round: +r.round, chosen_position: +r.chosen_position, is_test: +r.is_test || 0 }));
+  $("src").textContent = label + ` · ${RAW.length}행`;
+  $("demoFlag").style.display = demo ? "block" : "none";
+  render();
+}
+
+function parseCSV(text){
+  const out = []; let row = [], cur = "", q = false;
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){ if (c === '"'){ if (text[i+1] === '"'){ cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { row.push(cur); cur = ""; }
+    else if (c === "\n" || c === "\r"){ if (c === "\r" && text[i+1] === "\n") i++; row.push(cur); out.push(row); row = []; cur = ""; }
+    else cur += c;
+  }
+  if (cur || row.length){ row.push(cur); out.push(row); }
+  const head = out.shift().map(h => h.trim());
+  return out.filter(r => r.length > 1).map(r => Object.fromEntries(head.map((h, i) => [h, r[i]])));
+}
+
+/* ---------------- 예시 데이터 (가상) ---------------- */
+function simulate(n){
+  const rows = [];
+  const randn = () => Math.sqrt(-2 * Math.log(Math.random())) * Math.cos(2 * Math.PI * Math.random());
+  for (let p = 0; p < n; p++){
+    const id = "demo" + p;
+    const groups = D.groups.slice().sort(() => Math.random() - .5).slice(0, 3);
+    const tasteR = 3.2 + randn() * 1.2, tasteV = 0.85 + randn() * 0.35;   // 사람마다 다른 민감도
+    groups.forEach((g, gi) => {
+      const order = g.stores.slice().sort(() => Math.random() - .5);
+      const u = order.map((s, i) => tasteR * (s.rating - 4.6) / 0.5 * 1.0
+        + tasteV * Math.log10(s.reviews)
+        - 0.6 * (s.rating === 5 && s.reviews < 60 ? 1 : 0)     // "리뷰 적은 5.0점은 의심" 효과
+        + (i === 0 ? 0.25 : 0) - Math.log(-Math.log(Math.random())));
+      const k = u.indexOf(Math.max(...u)); const s = order[k];
+      rows.push({ respondent_id: id, round: gi + 1, group: g.id, chosen_store: s.id, chosen_rating: s.rating, chosen_reviews: s.reviews,
+        chosen_position: k + 1, display_order: order.map(x => x.id).join(","), is_test: 0 });
+    });
+  }
+  return rows;
+}
+
+/* ---------------- 조건부 로짓 (Newton-Raphson) ---------------- */
+const RC = 4.58, VC = 2.38;  // 중심화 기준(평점 평균, log10 리뷰 평균 근처)
+function feats(s){ const r = (s.rating - RC) * 10, v = Math.log10(s.reviews) - VC; return [r, v, r * v]; } // 평점은 0.1점 단위
+function clogit(sets){
+  const K = 3; let b = [0, 0, 0], H, ll = 0;
+  for (let it = 0; it < 50; it++){
+    const g = Array(K).fill(0); H = [...Array(K)].map(() => Array(K).fill(0)); ll = 0;
+    for (const { alts, chosen } of sets){
+      const X = alts.map(feats), u = X.map(x => x.reduce((a, xi, i) => a + xi * b[i], 0));
+      const m = Math.max(...u), e = u.map(x => Math.exp(x - m)), Z = e.reduce((a, c) => a + c, 0), p = e.map(x => x / Z);
+      ll += Math.log(p[chosen]);
+      const xb = Array(K).fill(0); X.forEach((x, j) => x.forEach((xi, i) => xb[i] += p[j] * xi));
+      X[chosen].forEach((xi, i) => g[i] += xi - xb[i]);
+      X.forEach((x, j) => { for (let a = 0; a < K; a++) for (let c = 0; c < K; c++) H[a][c] -= p[j] * (x[a] - xb[a]) * (x[c] - xb[c]); });
+    }
+    const step = solve(H.map(r => r.map(v => -v)), g);
+    b = b.map((v, i) => v + step[i]);
+    if (Math.max(...step.map(Math.abs)) < 1e-8) break;
+  }
+  const cov = inv(H.map(r => r.map(v => -v)));
+  const se = cov.map((r, i) => Math.sqrt(Math.max(r[i], 0)));
+  return { b, se, cov, ll, ll0: sets.length * Math.log(1 / 5) };
+}
+function solve(A, y){ const n = y.length, M = A.map((r, i) => [...r, y[i]]);
+  for (let i = 0; i < n; i++){ let p = i; for (let k = i + 1; k < n; k++) if (Math.abs(M[k][i]) > Math.abs(M[p][i])) p = k; [M[i], M[p]] = [M[p], M[i]];
+    if (Math.abs(M[i][i]) < 1e-12) return Array(n).fill(0);
+    for (let k = 0; k < n; k++) if (k !== i){ const f = M[k][i] / M[i][i]; for (let c = i; c <= n; c++) M[k][c] -= f * M[i][c]; } }
+  return M.map((r, i) => r[n] / r[i]); }
+function inv(A){ const n = A.length; return [...Array(n)].map((_, c) => solve(A, [...Array(n)].map((_, r) => +(r === c)))).map((col, i, cols) => cols.map(cc => cc[i])); }
+function pnorm2(z){ // 양측 p값
+  const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  return 2 * p; }
+
+/* ---------------- 렌더 ---------------- */
+function render(){
+  const rows = RAW.filter(r => !($("exTest").checked && r.is_test) && D.storeById[r.chosen_store]);
+  if (!rows.length){ $("out").innerHTML = `<div class="empty">표시할 응답이 없습니다.</div>`; return; }
+  const N = rows.length, people = new Set(rows.map(r => r.respondent_id)).size;
+  const sets = rows.map(r => {
+    const alts = (r.display_order ? String(r.display_order).split(",") : D.groups.find(g => g.id === r.group).stores.map(s => s.id)).map(id => D.storeById[id.trim()]);
+    return { alts, chosen: alts.findIndex(s => s.id === r.chosen_store), row: r };
+  }).filter(s => s.chosen >= 0);
+
+  // 집계
+  const byStore = Object.fromEntries(D.stores.map(s => [s.id, 0]));
+  const byGroup = Object.fromEntries(D.groups.map(g => [g.id, 0]));
+  const byR = Array(5).fill(0), byV = Array(5).fill(0), byPos = Array(5).fill(0);
+  rows.forEach(r => { const s = D.storeById[r.chosen_store]; byStore[s.id]++; byGroup[s.group]++; byR[s.ratingLevel]++; byV[s.reviewLevel]++; if (r.chosen_position >= 1 && r.chosen_position <= 5) byPos[r.chosen_position - 1]++; });
+  const share = (id) => byGroup[D.storeById[id].group] ? byStore[id] / byGroup[D.storeById[id].group] : 0;
+
+  const m = sets.length >= 15 ? clogit(sets) : null;
+  const gMin = Math.min(...Object.values(byGroup)), gMax = Math.max(...Object.values(byGroup));
+
+  let html = `
+  <div class="kpis">
+    <div class="kpi"><div class="l">응답자</div><div class="v">${fmt(people)}명</div><div class="h">1인 3개 그룹 무작위 배정</div></div>
+    <div class="kpi"><div class="l">선택 수</div><div class="v">${fmt(N)}건</div><div class="h">그룹당 ${gMin}~${gMax}건</div></div>
+    <div class="kpi"><div class="l">평점 4.1 → 5.0 선택률</div><div class="v">${pct(byR[0] / N)} → ${pct(byR[4] / N)}</div><div class="h">무작위로 고르면 각 20%</div></div>
+    <div class="kpi"><div class="l">리뷰 ${D.REVIEW_LEVELS[0]}개대 → ${fmt(D.REVIEW_LEVELS[4])}개대</div><div class="v">${pct(byV[0] / N)} → ${pct(byV[4] / N)}</div><div class="h">무작위로 고르면 각 20%</div></div>
+  </div>`;
+
+  if (m){
+    const [bR, bV, bI] = m.b, [sR, sV, sI] = m.se;
+    const equiv = Math.pow(10, bR / bV);   // 평점 0.1점 = 리뷰 몇 배
+    const r2 = 1 - m.ll / m.ll0;
+    const stars = (p) => p < .001 ? "***" : p < .01 ? "**" : p < .05 ? "*" : "(유의하지 않음)";
+    const zR = bR / sR, zV = bV / sV, zI = bI / sI;
+    html += `<div class="card wide" style="margin-bottom:16px">
+      <h2>핵심 결론 (조건부 로짓 모형)</h2>
+      <p class="d">"한 화면의 5곳 중 1곳을 고른다"는 구조를 그대로 반영한 선택 모형입니다. 효과는 서로 다른 변수를 통제한 상태의 값입니다.</p>
+      <div class="tablewrap"><table class="coef">
+        <tr><th>요인</th><th>계수</th><th>표준오차</th><th>p값</th><th>해석</th></tr>
+        <tr><td>평점 +0.1점</td><td>${bR.toFixed(3)}</td><td>${sR.toFixed(3)}</td><td>${pnorm2(zR).toExponential(1)} ${stars(pnorm2(zR))}</td><td style="text-align:left">선택 오즈 ×${Math.exp(bR).toFixed(2)}</td></tr>
+        <tr><td>리뷰 수 10배</td><td>${bV.toFixed(3)}</td><td>${sV.toFixed(3)}</td><td>${pnorm2(zV).toExponential(1)} ${stars(pnorm2(zV))}</td><td style="text-align:left">선택 오즈 ×${Math.exp(bV).toFixed(2)}</td></tr>
+        <tr><td>평점 × 리뷰 상호작용</td><td>${bI.toFixed(3)}</td><td>${sI.toFixed(3)}</td><td>${pnorm2(zI).toExponential(1)} ${stars(pnorm2(zI))}</td><td style="text-align:left">${bI > 0 ? "리뷰가 많을수록 평점이 더 중요해짐" : "리뷰가 많을수록 평점의 중요도가 줄어듦"}</td></tr>
+      </table></div>
+      <div class="finding">📌 <b>평점 0.1점 차이 ≈ 리뷰 수 ${bV > 0 && isFinite(equiv) ? equiv.toFixed(1) + "배" : "—"} 차이</b>와 비슷한 끌림입니다.
+        예를 들어 리뷰 ${fmt(260)}개인 가게가 평점 0.1점 낮다면, 리뷰가 약 ${bV > 0 && isFinite(equiv) ? fmt(Math.round(260 * equiv)) : "—"}개는 되어야 비슷하게 선택됩니다.
+        <span style="color:var(--muted)">(모형 설명력 McFadden R² = ${r2.toFixed(3)}, 선택 ${fmt(sets.length)}건)</span></div>
+    </div>`;
+  }
+
+  html += `<div class="grid">
+    <div class="card"><h2>평점 단계별 선택률</h2><p class="d">각 화면에 평점 단계가 하나씩 있으므로, 아무렇게나 고르면 모두 20%(점선)입니다. 세로선 = 95% 신뢰구간.</p><div id="cR"></div></div>
+    <div class="card"><h2>리뷰 수 단계별 선택률</h2><p class="d">리뷰 수는 로그 등간격 5단계(그룹마다 숫자는 조금씩 다름).</p><div id="cV"></div></div>
+    <div class="card wide"><h2>평점 × 리뷰 수 선택 지도</h2><p class="d">칸 하나 = 매장 하나. 진할수록 같은 화면 안에서 많이 선택됨(그룹 내 선택 비율). 마우스를 올리면 자세히 보입니다.</p><div id="cH"></div></div>
+    <div class="card wide"><h2>모형이 예측한 선택 확률</h2><p class="d">다른 4곳이 모두 "평점 4.6 · 리뷰 260개"일 때, 이 가게가 선택될 확률. 선 하나 = 리뷰 수 단계.</p><div id="cP"></div></div>
+    <div class="card"><h2>그룹별 매장 선택 비율</h2><p class="d">막대 길이 = 그룹 안 선택 비율, 라벨 = 평점 · 리뷰 수.</p><div id="cG"></div></div>
+    <div class="card"><h2>화면 위치별 선택률 (편향 점검)</h2><p class="d">매장 순서는 무작위였습니다. 위쪽에 쏠린다면 위치 효과가 있다는 뜻입니다.</p><div id="cPos"></div></div>
+    <div class="card wide"><h2>매장별 표</h2><div class="tablewrap" id="tbl"></div></div>
+  </div>`;
+  $("out").innerHTML = html;
+
+  barChart("cR", D.RATING_LEVELS.map((r, i) => ({ label: "★" + r.toFixed(1), v: byR[i] / N, n: byR[i] })), N);
+  barChart("cV", D.REVIEW_LEVELS.map((r, i) => ({ label: fmt(r) + "개대", v: byV[i] / N, n: byV[i] })), N);
+  heatmap("cH", share);
+  if (m) probChart("cP", m); else $("cP").innerHTML = `<div class="empty">선택이 15건 이상 모이면 계산됩니다.</div>`;
+  groupBars("cG", share);
+  barChart("cPos", [1,2,3,4,5].map(i => ({ label: i + "번째", v: byPos[i-1] / N, n: byPos[i-1] })), N);
+
+  $("tbl").innerHTML = `<table><tr><th>매장</th><th>그룹</th><th>이름</th><th>평점</th><th>리뷰 수</th><th>선택</th><th>그룹 내 비율</th></tr>` +
+    D.stores.map(s => `<tr><td>${s.id}</td><td>${D.groups.find(g => g.id === s.group).category}</td><td>${s.name}</td><td>${s.rating.toFixed(1)}</td><td>${fmt(s.reviews)}</td><td>${byStore[s.id]}</td><td>${pct(share(s.id), 1)}</td></tr>`).join("") + `</table>`;
+}
+
+/* ---------------- 차트 도우미 (SVG) ---------------- */
+const tip = $("tip");
+function hover(el, html){
+  el.addEventListener("mousemove", e => { tip.innerHTML = html; tip.style.opacity = 1; tip.style.left = Math.min(e.clientX + 14, innerWidth - 250) + "px"; tip.style.top = (e.clientY + 14) + "px"; });
+  el.addEventListener("mouseleave", () => tip.style.opacity = 0);
+}
+const svgEl = (w, h) => `<svg viewBox="0 0 ${w} ${h}" width="100%" style="display:block;max-width:${w}px">`;
+
+function barChart(id, data, N){
+  const W = 460, H = 230, L = 40, R = 10, T = 22, B = 30, cw = (W - L - R) / data.length, bw = Math.min(46, cw * .55);
+  const max = Math.max(.4, ...data.map(d => d.v)) * 1.1, y = v => T + (H - T - B) * (1 - v / max);
+  let s = svgEl(W, H);
+  for (let t = 0; t <= max; t += .1){ s += `<line x1="${L}" x2="${W-R}" y1="${y(t)}" y2="${y(t)}" stroke="var(--grid)"/><text x="${L-6}" y="${y(t)+4}" font-size="11" text-anchor="end">${Math.round(t*100)}%</text>`; }
+  s += `<line x1="${L}" x2="${W-R}" y1="${y(.2)}" y2="${y(.2)}" stroke="var(--muted)" stroke-dasharray="4 4"/>`;
+  data.forEach((d, i) => {
+    const x = L + cw * i + (cw - bw) / 2, h = Math.max(0, y(0) - y(d.v));
+    const se = Math.sqrt(d.v * (1 - d.v) / N);
+    s += `<g class="hb" data-i="${i}"><rect x="${L+cw*i}" y="${T}" width="${cw}" height="${H-T-B}" fill="transparent"/>
+      <path d="M${x},${y(0)} v${-h+4} q0,-4 4,-4 h${bw-8} q4,0 4,4 v${h-4} z" fill="var(--s1)"/>
+      <line x1="${x+bw/2}" x2="${x+bw/2}" y1="${y(Math.min(max, d.v+1.96*se))}" y2="${y(Math.max(0,d.v-1.96*se))}" stroke="var(--text2)" stroke-width="1.2"/>
+      <text x="${x+bw/2}" y="${y(d.v+1.96*se)-6}" font-size="11.5" text-anchor="middle" style="fill:var(--text)" font-weight="700">${pct(d.v)}</text>
+      <text x="${x+bw/2}" y="${H-10}" font-size="12" text-anchor="middle">${d.label}</text></g>`;
+  });
+  s += `<line x1="${L}" x2="${W-R}" y1="${y(0)}" y2="${y(0)}" stroke="var(--line)"/></svg>`;
+  $(id).innerHTML = s;
+  $(id).querySelectorAll(".hb").forEach(g => { const d = data[g.dataset.i]; const se = Math.sqrt(d.v*(1-d.v)/N);
+    hover(g, `<b>${d.label}</b><br>선택률 ${pct(d.v,1)} (${d.n}/${N})<br>95% 구간 ${pct(Math.max(0,d.v-1.96*se),1)} ~ ${pct(d.v+1.96*se,1)}`); });
+}
+
+function heatmap(id, share){
+  const W = 640, H = 330, L = 70, T = 10, B = 44, R = 90, cw = (W - L - R) / 5, ch = (H - T - B) / 5;
+  const ramp = ["--q1","--q2","--q3","--q4","--q5","--q6","--q7"];
+  const max = Math.max(.4, ...D.stores.map(s => share(s.id)));
+  const col = v => `var(${ramp[Math.min(6, Math.floor(v / max * 6.999))]})`;
+  let s = svgEl(W, H);
+  D.stores.forEach(st => {
+    const x = L + st.reviewLevel * cw, yy = T + (4 - st.ratingLevel) * ch, v = share(st.id), dark = v / max > .5;
+    s += `<g class="hc" data-id="${st.id}"><rect x="${x+1}" y="${yy+1}" width="${cw-2}" height="${ch-2}" rx="4" fill="${col(v)}"/>
+      <text x="${x+cw/2}" y="${yy+ch/2-2}" font-size="13" font-weight="700" text-anchor="middle" style="fill:${dark ? "var(--onhi)" : "var(--text)"}">${pct(v)}</text>
+      <text x="${x+cw/2}" y="${yy+ch/2+13}" font-size="10.5" text-anchor="middle" style="fill:${dark ? "var(--onhi2)" : "var(--text2)"}">${st.id} · ${D.groups.find(g=>g.id===st.group).category}</text></g>`;
+  });
+  D.RATING_LEVELS.forEach((r, i) => s += `<text x="${L-8}" y="${T+(4-i)*ch+ch/2+4}" font-size="12" text-anchor="end">★${r.toFixed(1)}</text>`);
+  D.REVIEW_LEVELS.forEach((r, i) => s += `<text x="${L+i*cw+cw/2}" y="${H-B+18}" font-size="12" text-anchor="middle">${fmt(r)}개대</text>`);
+  s += `<text x="${L+(W-L-R)/2}" y="${H-6}" font-size="12" text-anchor="middle">리뷰 수 →</text>`;
+  // 범례
+  ramp.forEach((v, i) => s += `<rect x="${W-R+24}" y="${T+(6-i)*22+20}" width="16" height="20" fill="var(${v})"/>`);
+  s += `<text x="${W-R+46}" y="${T+20+12}" font-size="11">${pct(max)}</text><text x="${W-R+46}" y="${T+6*22+20+14}" font-size="11">0%</text><text x="${W-R+20}" y="${T+12}" font-size="11">그룹 내 비율</text></svg>`;
+  $(id).innerHTML = s;
+  $(id).querySelectorAll(".hc").forEach(g => { const st = D.storeById[g.dataset.id];
+    hover(g, `<b>${st.name}</b> (${st.id})<br>★${st.rating.toFixed(1)} · 리뷰 ${fmt(st.reviews)}개<br>그룹 내 선택 비율 ${pct(share(st.id),1)}`); });
+}
+
+function probChart(id, m){
+  const W = 640, H = 280, L = 44, R = 110, T = 14, B = 34;
+  const ref = { rating: 4.6, reviews: 260 }, fref = feats(ref), uref = fref.reduce((a, x, i) => a + x * m.b[i], 0);
+  const P = (rating, reviews) => { const u = feats({ rating, reviews }).reduce((a, x, i) => a + x * m.b[i], 0); return Math.exp(u) / (Math.exp(u) + 4 * Math.exp(uref)); };
+  const xs = []; for (let r = 4.1; r <= 5.0001; r += 0.05) xs.push(+r.toFixed(2));
+  const x = r => L + (r - 4.1) / 0.9 * (W - L - R), y = v => T + (H - T - B) * (1 - v);
+  const cols = ["var(--q2)","var(--q3)","var(--q4)","var(--q5)","var(--q7)"];
+  let s = svgEl(W, H);
+  for (let t = 0; t <= 1.0001; t += .2) s += `<line x1="${L}" x2="${W-R}" y1="${y(t)}" y2="${y(t)}" stroke="var(--grid)"/><text x="${L-6}" y="${y(t)+4}" font-size="11" text-anchor="end">${Math.round(t*100)}%</text>`;
+  D.RATING_LEVELS.forEach(r => s += `<text x="${x(r)}" y="${H-12}" font-size="12" text-anchor="middle">★${r.toFixed(1)}</text>`);
+  s += `<line x1="${L}" x2="${W-R}" y1="${y(.2)}" y2="${y(.2)}" stroke="var(--muted)" stroke-dasharray="4 4"/>`;
+  const ends = [];
+  D.REVIEW_LEVELS.forEach((v, i) => {
+    const pts = xs.map(r => `${x(r).toFixed(1)},${y(P(r, v)).toFixed(1)}`).join(" ");
+    s += `<polyline points="${pts}" fill="none" stroke="${cols[i]}" stroke-width="2.2" stroke-linejoin="round"/>`;
+    ends.push({ y: y(P(5.0, v)), label: `리뷰 ${fmt(v)}개`, c: cols[i] });
+  });
+  ends.sort((a, b) => a.y - b.y); for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i-1].y < 14) ends[i].y = ends[i-1].y + 14;
+  ends.forEach(e => s += `<circle cx="${W-R+6}" cy="${e.y-4}" r="4" fill="${e.c}"/><text x="${W-R+14}" y="${e.y}" font-size="11.5">${e.label}</text>`);
+  s += `<rect id="pzone" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}" fill="transparent"/><line id="pcross" y1="${T}" y2="${H-B}" stroke="var(--text2)" stroke-width="1" opacity="0"/></svg>`;
+  $(id).innerHTML = s;
+  const svg = $(id).querySelector("svg"), zone = svg.querySelector("#pzone"), cross = svg.querySelector("#pcross");
+  zone.addEventListener("mousemove", e => {
+    const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const r = Math.min(5, Math.max(4.1, 4.1 + (p.x - L) / (W - L - R) * 0.9)), rr = Math.round(r * 20) / 20;
+    cross.setAttribute("x1", x(rr)); cross.setAttribute("x2", x(rr)); cross.setAttribute("opacity", .5);
+    tip.innerHTML = `<b>평점 ★${rr.toFixed(2)}</b><br>` + D.REVIEW_LEVELS.slice().reverse().map(v => `리뷰 ${fmt(v)}개: ${pct(P(rr, v),1)}`).join("<br>");
+    tip.style.opacity = 1; tip.style.left = Math.min(e.clientX + 14, innerWidth - 250) + "px"; tip.style.top = (e.clientY + 14) + "px";
+  });
+  zone.addEventListener("mouseleave", () => { tip.style.opacity = 0; cross.setAttribute("opacity", 0); });
+}
+
+function groupBars(id, share){
+  const W = 460, rowH = 17, gap = 14, L = 120, R = 46;
+  let yy = 6, s = "";
+  D.groups.forEach(g => {
+    s += `<text x="0" y="${yy+11}" font-size="12.5" font-weight="700" style="fill:var(--text)">${g.id} · ${g.category}</text>`; yy += 18;
+    g.stores.slice().sort((a,b) => share(b.id) - share(a.id)).forEach(st => {
+      const v = share(st.id), w = (W - L - R) * Math.min(1, v / .7);
+      s += `<g class="gb" data-id="${st.id}"><rect x="0" y="${yy}" width="${W}" height="${rowH}" fill="transparent"/>
+        <text x="${L-8}" y="${yy+12.5}" font-size="11.5" text-anchor="end">★${st.rating.toFixed(1)} · ${fmt(st.reviews)}</text>
+        <rect x="${L}" y="${yy+2}" width="${Math.max(2,w)}" height="${rowH-4}" rx="3" fill="var(--s1)"/>
+        <text x="${L+w+6}" y="${yy+12.5}" font-size="11.5" style="fill:var(--text)">${pct(v)}</text></g>`;
+      yy += rowH + 2;
+    });
+    yy += gap;
+  });
+  $(id).innerHTML = svgEl(W, yy) + s + `</svg>`;
+  $(id).querySelectorAll(".gb").forEach(g => { const st = D.storeById[g.dataset.id]; hover(g, `<b>${st.name}</b><br>★${st.rating.toFixed(1)} · 리뷰 ${fmt(st.reviews)}개<br>그룹 내 ${pct(share(st.id),1)}`); });
+}
+</script>
+</body>
+</html>

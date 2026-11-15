@@ -6,7 +6,7 @@
    ② 아래 실험 설계는 바꾸지 않는 것을 권장합니다(분석 페이지와 맞물려 있음).
    ===================================================================== */
 window.SURVEY_CONFIG = {
-  SHEET_URL: "",            // 예: "https://script.google.com/macros/s/XXXX/exec"
+  SHEET_URL: "https://script.google.com/macros/s/AKfycbyZ5OjYhGwu6_nq3GQHSjLZ7LGJM9Fvz4Ph-FlzsVujNOOUSawqyV8ojOg6dsN1fOm3/exec",            // 예: "https://script.google.com/macros/s/XXXX/exec"
   GROUPS_PER_PERSON: 3,     // 한 사람이 응답하는 그룹 수 (무작위 배정)
   SURVEY_VERSION: "v1",
 };

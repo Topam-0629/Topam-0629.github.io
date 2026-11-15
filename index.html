@@ -173,6 +173,13 @@
   flushQueue();
 
   if (!IS_TEST && store.get(DONE_KEY, false)) { show("already"); return; }
+  // 구글 시트가 연결되지 않았으면 실제 응답을 받지 않음(응답 유실 방지). ?test=1 로는 미리보기 가능
+  if (!IS_TEST && !CFG.SHEET_URL) {
+    document.querySelector("#already h1").textContent = "설문 준비 중이에요";
+    document.querySelector("#already p").innerHTML = "곧 시작합니다. 잠시 후 다시 QR을 찍어주세요!";
+    document.querySelector("#already .done-ico").textContent = "🛠️";
+    show("already"); return;
+  }
 
   const respondent = uid();
   const assigned = shuffle(D.groups).slice(0, CFG.GROUPS_PER_PERSON);   // 무작위 3개 그룹, 순서도 무작위

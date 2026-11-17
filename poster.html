@@ -60,7 +60,7 @@
 
 <script>
   const input = document.getElementById("url");
-  const SURVEY_URL = "https://topam-0629.github.io/delivery-survey/";
+  const SURVEY_URL = "https://topam-0629.github.io/";
   const guess = new URLSearchParams(location.search).get("url") || SURVEY_URL;
   if (new URLSearchParams(location.search).has("bare")) document.body.classList.add("bare");
   input.value = guess;
